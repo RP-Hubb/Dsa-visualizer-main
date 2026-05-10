@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SORTING_ALGORITHMS } from '../../algorithms/sorting';
 import { generateRandomArray } from '../../utils';
@@ -86,16 +86,30 @@ export default function ComparisonMode() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(200);
   const [winner, setWinner] = useState(null);
-  const playRef = useRef(false);
+
+  // Refs so the async loop always has current values
+  const playRef  = useRef(false);
+  const step1Ref = useRef(0);
+  const step2Ref = useRef(0);
+  const steps1Ref = useRef([]);
+  const steps2Ref = useRef([]);
+  const speedRef  = useRef(speed);
+
+  // Keep refs in sync with state
+  useEffect(() => { step1Ref.current = step1; }, [step1]);
+  useEffect(() => { step2Ref.current = step2; }, [step2]);
+  useEffect(() => { steps1Ref.current = steps1; }, [steps1]);
+  useEffect(() => { steps2Ref.current = steps2; }, [steps2]);
+  useEffect(() => { speedRef.current = speed; }, [speed]);
 
   const generate = useCallback((size = arraySize) => {
     const arr = generateRandomArray(size, 5, 95);
     const s1 = SORTING_ALGORITHMS[algo1].generate([...arr]);
     const s2 = SORTING_ALGORITHMS[algo2].generate([...arr]);
-    setSteps1(s1);
-    setSteps2(s2);
-    setStep1(0);
-    setStep2(0);
+    setSteps1(s1); steps1Ref.current = s1;
+    setSteps2(s2); steps2Ref.current = s2;
+    setStep1(0);   step1Ref.current = 0;
+    setStep2(0);   step2Ref.current = 0;
     setWinner(null);
     setIsPlaying(false);
     playRef.current = false;
@@ -103,39 +117,54 @@ export default function ComparisonMode() {
 
   const handlePlay = () => {
     if (steps1.length === 0) { generate(); return; }
-    const newPlaying = !isPlaying;
-    setIsPlaying(newPlaying);
-    playRef.current = newPlaying;
-
-    if (newPlaying) {
-      let s1 = step1, s2 = step2;
-      const run = async () => {
-        while (playRef.current) {
-          await new Promise(r => setTimeout(r, speed));
-          if (!playRef.current) break;
-          let done1 = s1 >= steps1.length - 1;
-          let done2 = s2 >= steps2.length - 1;
-          if (!done1) { s1++; setStep1(s1); }
-          if (!done2) { s2++; setStep2(s2); }
-          if (done1 && done2) {
-            const ops1 = steps1[steps1.length - 1]?.operations || 0;
-            const ops2 = steps2[steps2.length - 1]?.operations || 0;
-            setWinner(ops1 <= ops2 ? algo1 : algo2);
-            setIsPlaying(false);
-            playRef.current = false;
-            break;
-          }
-        }
-      };
-      run();
+    if (isPlaying) {
+      // Pause
+      setIsPlaying(false);
+      playRef.current = false;
+      return;
     }
+    // Start / Resume
+    setIsPlaying(true);
+    playRef.current = true;
+
+    const run = async () => {
+      while (playRef.current) {
+        await new Promise(r => setTimeout(r, speedRef.current));
+        if (!playRef.current) break;
+
+        const s1 = steps1Ref.current;
+        const s2 = steps2Ref.current;
+        const done1 = step1Ref.current >= s1.length - 1;
+        const done2 = step2Ref.current >= s2.length - 1;
+
+        if (!done1) {
+          const next = step1Ref.current + 1;
+          step1Ref.current = next;
+          setStep1(next);
+        }
+        if (!done2) {
+          const next = step2Ref.current + 1;
+          step2Ref.current = next;
+          setStep2(next);
+        }
+        if (done1 && done2) {
+          const ops1 = s1[s1.length - 1]?.operations || 0;
+          const ops2 = s2[s2.length - 1]?.operations || 0;
+          setWinner(ops1 <= ops2 ? algo1 : algo2);
+          setIsPlaying(false);
+          playRef.current = false;
+          break;
+        }
+      }
+    };
+    run();
   };
 
   const handleReset = () => {
     setIsPlaying(false);
     playRef.current = false;
-    setStep1(0);
-    setStep2(0);
+    setStep1(0); step1Ref.current = 0;
+    setStep2(0); step2Ref.current = 0;
     setWinner(null);
   };
 

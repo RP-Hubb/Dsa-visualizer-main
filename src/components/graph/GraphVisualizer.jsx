@@ -6,11 +6,11 @@ import { Play, RotateCcw } from 'lucide-react';
 
 const NODE_RADIUS = 24;
 
-export default function GraphVisualizer() {
+export default function GraphVisualizer({ initialTraversal = 'bfs' }) {
   const [nodes, setNodes] = useState(DEFAULT_GRAPH.nodes);
   const [edges, setEdges] = useState(DEFAULT_GRAPH.edges);
   const [adjacency, setAdjacency] = useState(DEFAULT_GRAPH.adjacency);
-  const [traversalType, setTraversalType] = useState('bfs');
+  const [traversalType, setTraversalType] = useState(initialTraversal);
   const [startNode, setStartNode] = useState('A');
   const [steps, setSteps] = useState([]);
   const [currentStep, setCurrentStep] = useState(0);
